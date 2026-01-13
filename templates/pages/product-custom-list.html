@@ -1,0 +1,22 @@
+{{ define "product-custom-list" }}
+<section class="section py-5">
+  <div class="container text-center">
+    <h2 class="mb-5" style="color: #003f62">Pilih Produk Custom</h2>
+
+    <div class="row">
+      {{ range .customProducts }}
+      <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+          <!-- <img src="{{ .Image }}" class="card-img-top p-4" style="height:250px;object-fit:contain;" alt="{{ .Name }}"> -->
+          <img src="{{ .Image }}" class="card-img-top p-4" style="height: 250px; object-fit: contain" alt="{{ .Name }}" />
+          <div class="card-body">
+            <h5 class="card-title">{{ .Name }}</h5>
+            <a href="/product-custom/{{ .Slug }}" class="btn btn-primary mt-3" style="background-color: #003f62">Custom Sekarang</a>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+</section>
+{{ end }}

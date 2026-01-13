@@ -1,0 +1,194 @@
+{{ define "product-custom-detail" }}
+<section class="section py-5">
+  <div class="container">
+    <h2 class="text-center mb-4" style="color: #003f62">Custom {{ .type }}</h2>
+
+    <div class="row justify-content-center">
+      <div class="col-md-10">
+        <div class="row g-4">
+          <div class="col-md-6 text-center">
+            <h5>Design Canvas</h5>
+            <div id="canvas-container" class="position-relative border bg-light mx-auto" style="width: 400px; height: 400px">
+              <img id="base-image" src="/public/{{ .Image }}" alt="{{ .type }}" class="w-100 h-100" style="object-fit: contain; opacity: 0.6" />
+              <img id="uploaded-image" src="" alt="Custom" class="position-absolute d-none" style="border: 1px dashed #333; object-fit: contain" />
+            </div>
+            <p class="text-muted small mt-2">Canvas: 400×400px</p>
+          </div>
+
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Upload Design Image</label>
+              <input type="file" id="upload-input" accept="image/*" class="form-control" />
+            </div>
+
+            {{ if or (eq .type "tshirt") (eq .type "polo") }}
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Size</label>
+              <select id="size-select" class="form-select">
+                <option value="S">S</option>
+                <option value="M" selected>M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="XXL">XXL</option>
+              </select>
+            </div>
+            {{ end }}
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Position X (<span id="x-val">100</span>px)</label>
+              <input type="range" id="pos-x" min="0" max="300" value="100" class="form-range" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Position Y (<span id="y-val">100</span>px)</label>
+              <input type="range" id="pos-y" min="0" max="300" value="100" class="form-range" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Design Width (<span id="w-val">100</span>px)</label>
+              <input type="range" id="width" min="20" max="300" value="100" class="form-range" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Design Height (<span id="h-val">100</span>px)</label>
+              <input type="range" id="height" min="20" max="300" value="100" class="form-range" />
+            </div>
+
+            <!-- <div class="border-top pt-3">
+              <p class="fw-semibold">
+                Total Price: Rp <span id="total-price">70.000</span><br />
+                <small class="text-muted">Base: Rp 70.000 + Custom: Rp 50.000</small>
+              </p>
+              <button id="save-btn" class="btn btn-primary w-100" style="background-color: #003f62" disabled>Save Custom Design</button>
+            </div> -->
+            <div class="border-top pt-3">
+              <p class="fw-semibold">
+                Total Price: Rp <span id="total-price"> {{ printf "%.0f" .BasePrice | FormatPrice }} </span><br />
+
+                <small class="text-muted"> Base: Rp {{ printf "%.0f" .BasePrice | FormatPrice }} + Custom: Rp {{ printf "%.0f" .CustomFee | FormatPrice }} </small>
+              </p>
+
+              <button id="save-btn" class="btn btn-primary w-100" style="background-color: #003f62" disabled>Save Custom Design</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const uploadInput = document.getElementById("upload-input");
+    const uploadedImage = document.getElementById("uploaded-image");
+    const posX = document.getElementById("pos-x");
+    const posY = document.getElementById("pos-y");
+    const width = document.getElementById("width");
+    const height = document.getElementById("height");
+    const saveBtn = document.getElementById("save-btn");
+    const totalPrice = document.getElementById("total-price");
+
+    const xVal = document.getElementById("x-val");
+    const yVal = document.getElementById("y-val");
+    const wVal = document.getElementById("w-val");
+    const hVal = document.getElementById("h-val");
+
+    let basePrice = Number("{{ .BasePrice }}");
+    let customFee = Number("{{ .CustomFee }}");
+
+    // upload handler
+    uploadInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        uploadedImage.src = ev.target.result;
+        uploadedImage.classList.remove("d-none");
+        saveBtn.disabled = false;
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // update canvas position & size
+    function updatePreview() {
+      const x = posX.value;
+      const y = posY.value;
+      const w = width.value;
+      const h = height.value;
+
+      uploadedImage.style.left = x + "px";
+      uploadedImage.style.top = y + "px";
+      uploadedImage.style.width = w + "px";
+      uploadedImage.style.height = h + "px";
+
+      xVal.textContent = x;
+      yVal.textContent = y;
+      wVal.textContent = w;
+      hVal.textContent = h;
+
+      totalPrice.textContent = (basePrice + customFee).toLocaleString("id-ID");
+    }
+
+    [posX, posY, width, height].forEach((input) => {
+      input.addEventListener("input", updatePreview);
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      // compose final image on canvas (400x400)
+      const canvas = document.createElement('canvas');
+      canvas.width = 400; canvas.height = 400;
+      const c = canvas.getContext('2d');
+      const base = document.getElementById('base-image');
+      // draw base (fit to canvas)
+      c.drawImage(base, 0, 0, canvas.width, canvas.height);
+
+      // draw uploaded image according to controls
+      if (!uploadedImage.classList.contains('d-none')) {
+        const x = parseInt(posX.value);
+        const y = parseInt(posY.value);
+        const w = parseInt(width.value);
+        const h = parseInt(height.value);
+        const img = new Image();
+        img.src = uploadedImage.src;
+        await new Promise((res) => { img.onload = res; });
+        c.drawImage(img, x, y, w, h);
+      }
+
+      const dataURL = canvas.toDataURL('image/png');
+
+      const payload = {
+        type: "{{ .type }}",
+        size: document.getElementById('size-select') ? document.getElementById('size-select').value : "",
+        quantity: 1,
+        base_price: {{ printf "%.0f" .BasePrice }},
+        custom_fee: {{ printf "%.0f" .CustomFee }},
+        design: dataURL
+      };
+
+      saveBtn.disabled = true;
+      try {
+        const res = await fetch('/carts/custom', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.redirected) {
+          window.location = res.url;
+          return;
+        }
+        if (res.ok) {
+          window.location = '/carts';
+        } else {
+          const txt = await res.text();
+          alert('Gagal menyimpan custom: ' + txt);
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  });
+</script>
+{{ end }}

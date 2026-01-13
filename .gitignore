@@ -1,0 +1,14 @@
+documentation.txt
+.env
+.env.example
+.idea/
+cookie.txt
+ngrok.exe
+# Folder uploads (jika ada data sensitif)
+public/uploads/
+uploads/
+# File dan folder database yang tidak perlu
+# (hapus tanda pagar jika ingin exclude seluruh database)
+#database/
+# Folder tools jika hanya untuk development
+#tools/

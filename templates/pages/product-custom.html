@@ -1,0 +1,73 @@
+{{ define "product-custom" }}
+<section class="section py-5">
+  <div class="container">
+    <div class="row align-items-start">
+      <div class="col-md-6 text-center">
+        <div class="product-preview position-relative">
+          <img
+            id="baseImage"
+            src="/public/img/products/KaosCustom.jpg"
+            alt="T-Shirt Putih"
+            class="img-fluid"
+            style="max-height: 450px;"
+          />
+          <img
+            id="overlayImage"
+            src=""
+            class="position-absolute"
+            style="
+              top: 35%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              max-width: 60%;
+              display: none;
+            "
+          />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <h2 class="mb-3" style="color: #003f62">Custom Kaos</h2>
+        <p class="mb-4 text-muted">Unggah desainmu sendiri dan lihat hasilnya langsung di kaos!</p>
+
+        <div class="form-group">
+          <label for="uploadImage"><strong>Upload Desain (PNG/JPG)</strong></label>
+          <input type="file" class="form-control" id="uploadImage" accept="image/*" />
+        </div>
+
+        <div class="form-group mt-4">
+          <label><strong>Ukuran</strong></label>
+          <select class="form-control" id="sizeSelect">
+            <option value="S">S</option>
+            <option value="M" selected>M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+          </select>
+        </div>
+
+        <div class="form-group mt-4">
+          <label><strong>Jumlah</strong></label>
+          <input type="number" id="quantity" class="form-control" value="1" min="1" />
+        </div>
+
+        <button class="btn btn-primary mt-4" style="background-color:#003f62" id="addToCart">
+          <i class="fa fa-shopping-cart mr-1"></i> Tambahkan ke Keranjang
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.getElementById("uploadImage").addEventListener("change", function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const overlay = document.getElementById("overlayImage");
+      overlay.src = event.target.result;
+      overlay.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  });
+</script>
+{{ end }}
