@@ -2,8 +2,11 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/sessions"
 
 	"github.com/codeuiprogramming/e-commerce/app/models"
 	"github.com/google/uuid"
@@ -26,6 +29,9 @@ func (server *Server) ClaimClerk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// debug log for incoming claims
+	fmt.Println("ClaimClerk called with payload:", payload)
+
 	if payload.ID == "" || payload.Email == "" {
 		http.Error(w, "missing id or email", http.StatusBadRequest)
 		return
@@ -37,7 +43,19 @@ func (server *Server) ClaimClerk(w http.ResponseWriter, r *http.Request) {
 	if err == nil && existing != nil {
 		session, _ := store.Get(r, sessionUser)
 		session.Values["id"] = existing.ID
-		session.Save(r, w)
+		// ensure cookie options are explicit for this response
+		session.Options = &sessions.Options{
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   false,
+			MaxAge:   86400,
+			SameSite: http.SameSiteLaxMode,
+		}
+		if err := session.Save(r, w); err != nil {
+			fmt.Println("ClaimClerk: failed to save session for existing user:", err)
+		} else {
+			fmt.Println("ClaimClerk: session saved for existing user", existing.ID)
+		}
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{ "code": 200, "message": "ok", "user": existing })
@@ -66,7 +84,19 @@ func (server *Server) ClaimClerk(w http.ResponseWriter, r *http.Request) {
 
 	session, _ := store.Get(r, sessionUser)
 	session.Values["id"] = created.ID
-	session.Save(r, w)
+	// ensure cookie options are explicit when creating session
+	session.Options = &sessions.Options{
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		MaxAge:   86400,
+		SameSite: http.SameSiteLaxMode,
+	}
+	if err := session.Save(r, w); err != nil {
+		fmt.Println("ClaimClerk: failed to save session for new user:", err)
+	} else {
+		fmt.Println("ClaimClerk: session saved for new user", created.ID)
+	}
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{ "code": 200, "message": "created", "user": created })

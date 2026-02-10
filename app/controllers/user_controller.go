@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/codeuiprogramming/e-commerce/app/helpers"
 	"github.com/codeuiprogramming/e-commerce/app/models"
@@ -154,7 +155,8 @@ func (server *Server) Profile(w http.ResponseWriter, r *http.Request) {
 	data["error"] = GetFlash(w, r, "error")
 
 	// Prefer avatar stored in DB; fallback to filesystem check
-	if u := server.CurrentUser(w, r); u != nil {
+	u := server.CurrentUser(w, r)
+	if u != nil {
 		var avatar models.UserAvatar
 		if err := server.DB.Where("user_id = ?", u.ID).First(&avatar).Error; err == nil {
 			data["avatar"] = avatar.Path
@@ -166,6 +168,23 @@ func (server *Server) Profile(w http.ResponseWriter, r *http.Request) {
 				data["avatar"] = "/public/uploads/avatars/" + filename
 			}
 		}
+
+		// prepare prefill values for gender and dob
+		if u.Gender == "male" {
+			data["genderMale"] = "selected"
+		} else if u.Gender == "female" {
+			data["genderFemale"] = "selected"
+		}
+		if u.Dob != nil {
+			data["dobValue"] = u.Dob.Format("2006-01-02")
+		}
+	}
+
+	// load provinces server-side so template can render options immediately
+	if provinces, err := server.GetProvince(); err == nil {
+		data["provinces"] = provinces
+	} else {
+		data["provinces"] = nil
 	}
 
 	_ = render.HTML(w, http.StatusOK, "profile", data)
@@ -200,6 +219,19 @@ func (server *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	if last != "" {
 		updates["last_name"] = last
+	}
+
+	// always collect dob, phone and gender into updates if provided
+	if dobStr := r.FormValue("dob"); dobStr != "" {
+		if t, err := time.Parse("2006-01-02", dobStr); err == nil {
+			updates["dob"] = &t
+		}
+	}
+	if phone := r.FormValue("phone"); phone != "" {
+		updates["phone"] = phone
+	}
+	if gender := r.FormValue("gender"); gender != "" {
+		updates["gender"] = gender
 	}
 
 	// handle avatar upload (optional)
@@ -273,5 +305,56 @@ func (server *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	SetFlash(w, r, "success", "Profile updated successfully")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// CreateAddress handles creating a new address for the current user
+func (server *Server) CreateAddress(w http.ResponseWriter, r *http.Request) {
+	if !IsLoggedIn(r) {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	user := server.CurrentUser(w, r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		SetFlash(w, r, "error", "failed to parse form")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	name := r.FormValue("name")
+	phone := r.FormValue("phone")
+	provinceID := r.FormValue("province_id")
+	cityID := r.FormValue("city_id")
+	// district field omitted (not stored) -- use address2 for extra details if needed
+	postcode := r.FormValue("postcode")
+	address1 := r.FormValue("address1")
+	address2 := r.FormValue("address2")
+
+	addr := &models.Address{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		Name:      name,
+		IsPrimary: false,
+		CityID:    cityID,
+		ProvinceID: provinceID,
+		Address1:  address1,
+		Address2:  address2,
+		Phone:     phone,
+		PostCode:  postcode,
+	}
+
+	if err := server.DB.Create(addr).Error; err != nil {
+		SetFlash(w, r, "error", "failed to save address")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	SetFlash(w, r, "success", "Alamat berhasil ditambahkan")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }

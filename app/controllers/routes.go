@@ -34,6 +34,7 @@ func (server *Server) initializeRoutes() {
 	server.Router.HandleFunc("/carts/custom", server.AddCustomToCart).Methods("POST")
 	server.Router.HandleFunc("/carts/update", server.UpdateCart).Methods("POST")
 	server.Router.HandleFunc("/carts/cities", server.GetCitiesByProvince).Methods("GET")
+	server.Router.HandleFunc("/provinces", server.GetProvinces).Methods("GET")
 	server.Router.HandleFunc("/carts/calculate-shipping", server.CalculateShipping).Methods("POST")
 	server.Router.HandleFunc("/carts/apply-shipping", server.ApplyShipping).Methods("POST")
 	server.Router.HandleFunc("/carts/remove/{id}", server.RemoveItemByID).Methods("GET")
@@ -44,9 +45,13 @@ func (server *Server) initializeRoutes() {
 	// Profile page
 	server.Router.HandleFunc("/profile", server.Profile).Methods("GET")
 	server.Router.HandleFunc("/profile", server.UpdateProfile).Methods("POST")
+	server.Router.HandleFunc("/profile/address", server.CreateAddress).Methods("POST")
 
 	// Endpoint untuk menerima klaim session dari Clerk frontend (development flow)
 	server.Router.HandleFunc("/auth/clerk/claim", server.ClaimClerk).Methods("POST")
+
+	// Debug: lihat apakah server mengenali session saat ini
+	server.Router.HandleFunc("/_debug/session", server.DebugSession).Methods("GET")
 
 	// server.Router.HandleFunc("/payments/midtrans", server.Midtrans).Methods("POST")
 	server.Router.HandleFunc("/payments/notification", server.PaymentNotification).Methods("POST")

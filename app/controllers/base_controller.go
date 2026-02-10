@@ -83,8 +83,19 @@ func (server *Server) Initialize(appConfig AppConfig, dbConfig DBConfig) {
 
 	fmt.Println("Welcome to " + appConfig.AppName)
 
+	// Ensure cookie store has explicit options suitable for local development
+	// so the session cookie is created and sent on localhost.
+	store.Options = &sessions.Options{
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		MaxAge:   86400,
+	}
+
 	server.initializeDB(dbConfig)
 	server.initializeAppConfig(appConfig)
+	// run DB migrations automatically in development so new profile fields exist
+	server.dbMigrate()
 	server.initializeRoutes()
 } 
 
@@ -374,4 +385,20 @@ func (server *Server) DefaultRenderData(w http.ResponseWriter, r *http.Request, 
 	data["user"] = server.CurrentUser(w, r)
 
 	return data
+}
+
+// Debug endpoint: tampilkan session/server-side current user (JSON) untuk troubleshooting
+func (server *Server) DebugSession(w http.ResponseWriter, r *http.Request) {
+	user := server.CurrentUser(w, r)
+	if user == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("null"))
+		return
+	}
+
+	b, _ := json.Marshal(user)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 }

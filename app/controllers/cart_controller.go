@@ -202,6 +202,26 @@ func (server *Server) GetCitiesByProvince(w http.ResponseWriter, r *http.Request
 	w.Write(result)
 }
 
+// GetProvinces returns list of provinces (proxy to external API wrapper)
+func (server *Server) GetProvinces(w http.ResponseWriter, r *http.Request) {
+    provinces, err := server.GetProvince()
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    res := Result{Code: 200, Data: provinces, Message: "Success"}
+    result, err := json.Marshal(res)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(result)
+}
+
 type ShippingRequest struct {
     CityID  string `json:"city_id"`
     Courier string `json:"courier"`

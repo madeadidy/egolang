@@ -60,7 +60,7 @@
                       </div>
                       <div class="form-group col-md-6">
                         <label>Phone</label>
-                        <input type="text" class="form-control" name="phone" value="" />
+                        <input type="text" class="form-control" name="phone" value="{{ if .user }}{{ .user.Phone }}{{ end }}" />
                       </div>
                     </div>
 
@@ -69,13 +69,13 @@
                         <label>Gender</label>
                         <select class="form-control" name="gender">
                           <option value="">--</option>
-                          <option value="male">Laki-laki</option>
-                          <option value="female">Perempuan</option>
+                          <option value="male" {{ .genderMale }}>Laki-laki</option>
+                          <option value="female" {{ .genderFemale }}>Perempuan</option>
                         </select>
                       </div>
                       <div class="form-group col-md-4">
                         <label>Date of birth</label>
-                        <input type="date" class="form-control" name="dob" />
+                        <input type="date" class="form-control" name="dob" value="{{ .dobValue }}" />
                       </div>
                       <div class="form-group col-md-4">
                         <label>Foto profil</label>
@@ -94,7 +94,96 @@
                       <p>Belum ada alamat.</p>
                     </div>
                   </div>
-                  <button class="btn btn-outline-primary btn-block">Tambah Alamat</button>
+                  <button class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#modalAddAddress">Tambah Alamat</button>
+
+                  <!-- Modal: Alamat Baru -->
+                  <div class="modal fade" id="modalAddAddress" tabindex="-1" role="dialog" aria-labelledby="modalAddAddressLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                      <div class="modal-content">
+                        <form method="POST" action="/profile/address">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="modalAddAddressLabel">Alamat Baru</h5>
+                          </div>
+                          <div class="modal-body">
+                            <style>
+                              /* Fixed popup size: 500x564 */
+                              #modalAddAddress .modal-dialog {
+                                width: 500px;
+                                max-width: 500px;
+                              }
+                              #modalAddAddress .modal-content {
+                                height: 564px;
+                              }
+                              /* make body scrollable while keeping header/footer visible */
+                              #modalAddAddress .modal-body {
+                                padding: 12px;
+                                overflow-y: auto;
+                                height: calc(564px - 120px);
+                              }
+                              #modalAddAddress #addrMap {
+                                height: 150px;
+                              }
+                            </style>
+                            <div class="form-row">
+                              <div class="form-group col-md-6">
+                                <input type="text" class="form-control" name="name" placeholder="Nama Lengkap" />
+                              </div>
+                              <div class="form-group col-md-6">
+                                <input type="text" class="form-control" name="phone" placeholder="Nomor Telepon" />
+                              </div>
+                            </div>
+
+                            <div class="form-row">
+                              <div class="form-group col-12">
+                                <ul class="nav nav-tabs" id="addrTab" role="tablist">
+                                  <li class="nav-item"><a class="nav-link active" id="tab-provinsi" data-toggle="tab" href="#pane-provinsi" role="tab">Provinsi</a></li>
+                                  <li class="nav-item"><a class="nav-link" id="tab-kota" data-toggle="tab" href="#pane-kota" role="tab">Kota</a></li>
+                                  <li class="nav-item"><a class="nav-link" id="tab-kecamatan" data-toggle="tab" href="#pane-kecamatan" role="tab">Kecamatan</a></li>
+                                  <li class="nav-item"><a class="nav-link" id="tab-postcode" data-toggle="tab" href="#pane-postcode" role="tab">Kode Pos</a></li>
+                                </ul>
+                                <div class="tab-content" style="border: 1px solid #e9ecef; border-top: 0; max-height: 220px; overflow: auto; padding: 12px">
+                                  <div class="tab-pane fade show active" id="pane-provinsi" role="tabpanel">
+                                    <select id="addrProvince" name="province_id" class="form-control">
+                                      <option value="">Pilih Provinsi</option>
+                                      {{ if .provinces }} {{ range $i, $p := .provinces }}
+                                      <option value="{{ $p.ID }}">{{ $p.Name }}</option>
+                                      {{ end }} {{ end }}
+                                    </select>
+                                  </div>
+                                  <div class="tab-pane fade" id="pane-kota" role="tabpanel">
+                                    <select id="addrCity" name="city_id" class="form-control" size="8">
+                                      <option value="">--</option>
+                                    </select>
+                                  </div>
+                                  <div class="tab-pane fade" id="pane-kecamatan" role="tabpanel">
+                                    <input type="text" class="form-control" name="district" placeholder="Kecamatan" />
+                                  </div>
+                                  <div class="tab-pane fade" id="pane-postcode" role="tabpanel">
+                                    <input type="text" class="form-control" name="postcode" placeholder="Kode Pos" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="form-group">
+                              <input id="address1" name="address1" class="form-control" type="text" placeholder="Nama Jalan, Gedung, No. Rumah" />
+                            </div>
+                            <div class="form-group">
+                              <input type="text" name="address2" class="form-control" placeholder="Detail Lainnya (Cth: Blok / Unit No., Patokan)" />
+                            </div>
+
+                            <div class="alert alert-warning">Tetapkan pin yang tepat — klik peta untuk menyesuaikan jika perlu.</div>
+
+                            <div id="addrMap" style="height: 300px"></div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Nanti Saja</button>
+                            <button type="submit" class="btn btn-primary">OK</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div id="ubah-password" class="tab-pane fade">
@@ -141,3 +230,221 @@
 </div>
 
 {{ end }}
+<!-- Leaflet CSS & JS + small geocode script -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    console.log("profile script loaded");
+    var modal = document.getElementById("modalAddAddress");
+    var map, marker;
+
+    function initMap() {
+      if (map) return;
+      map = L.map("addrMap").setView([-0.5, 117.0], 5);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+      }).addTo(map);
+      marker = L.marker(map.getCenter(), { draggable: true }).addTo(map);
+      marker.on("dragend", function (e) {
+        var p = marker.getLatLng();
+        console.log("Marker moved to", p.lat, p.lng);
+      });
+      map.on("click", function (e) {
+        marker.setLatLng(e.latlng);
+      });
+    }
+
+    // load provinces for select (client fallback)
+    function loadProvinces() {
+      var sel = document.getElementById("addrProvince");
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Memuat...</option>';
+      return fetch("/provinces")
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (json) {
+          sel.innerHTML = '<option value="">Pilih Provinsi</option>';
+          if (json && json.data) {
+            json.data.forEach(function (p) {
+              var opt = document.createElement("option");
+              opt.value = p.id || p.ID || p.province_id || "";
+              opt.text = p.name || p.Name || p.province || "";
+              sel.appendChild(opt);
+            });
+          }
+        })
+        .catch(function (err) {
+          console.warn("Gagal memuat provinsi", err);
+          sel.innerHTML = '<option value="">Gagal memuat provinsi</option>';
+        });
+    }
+
+    // attach province->city loader when modal opens (ensure element exists)
+    function attachProvinceChange() {
+      var prov = document.getElementById("addrProvince");
+      var citySel = document.getElementById("addrCity");
+      if (!prov || !citySel) {
+        console.log("attachProvinceChange: missing elements", !!prov, !!citySel);
+        return;
+      }
+      // avoid adding multiple listeners
+      if (prov._hasAttach) return;
+      prov._hasAttach = true;
+      prov.addEventListener("change", function (e) {
+        console.log("province changed ->", prov.value);
+        var pid = prov.value;
+        if (!pid) {
+          citySel.innerHTML = '<option value="">--</option>';
+          return;
+        }
+        loadCities(pid);
+      });
+      console.log("attachProvinceChange: listener attached");
+    }
+
+    // ensure change handler is attached as soon as possible so manual province changes work
+    try {
+      attachProvinceChange();
+      console.log("attachProvinceChange called on DOMContentLoaded");
+    } catch (e) {
+      console.warn("attachProvinceChange call failed", e);
+    }
+
+    // fetch and populate cities for a province id
+    function loadCities(pid) {
+      var citySel = document.getElementById("addrCity");
+      if (!citySel) return;
+      citySel.innerHTML = '<option value="">Memuat...</option>';
+      fetch("/carts/cities?province_id=" + encodeURIComponent(pid))
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (json) {
+          console.log("loadCities response:", json);
+          citySel.innerHTML = '<option value="">Pilih Kota</option>';
+          if (json && json.data) {
+            try {
+              json.data.forEach(function (c) {
+                var opt = document.createElement("option");
+                opt.value = c.id || c.ID || c.city_id || "";
+                opt.text = c.name || c.Name || c.city_name || "";
+                citySel.appendChild(opt);
+              });
+              console.log("loadCities appended", citySel.options.length - 1, "cities");
+            } catch (ex) {
+              console.error("error while populating cities", ex);
+            }
+          } else {
+            console.log("loadCities: no data in response");
+          }
+        })
+        .catch(function (err) {
+          console.warn("Gagal memuat kota", err);
+          citySel.innerHTML = '<option value="">Gagal memuat kota</option>';
+        });
+    }
+
+    // geocode when address1 changes (simple debounce)
+    var addrInput = document.getElementById("address1");
+    var timer;
+    if (addrInput) {
+      addrInput.addEventListener("input", function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          var q = addrInput.value.trim();
+          if (!q) return;
+          // use Nominatim for free geocoding
+          fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(q + " Indonesia"))
+            .then(function (res) {
+              return res.json();
+            })
+            .then(function (data) {
+              if (!data || data.length === 0) return;
+              var lat = parseFloat(data[0].lat),
+                lon = parseFloat(data[0].lon);
+              initMap();
+              map.setView([lat, lon], 16);
+              marker.setLatLng([lat, lon]);
+            })
+            .catch(function (err) {
+              console.warn("geocode error", err);
+            });
+        }, 600);
+      });
+    }
+
+    // init when modal shown
+    function waitForjQuery(cb) {
+      if (window.jQuery) return cb();
+      setTimeout(function () {
+        waitForjQuery(cb);
+      }, 100);
+    }
+
+    waitForjQuery(function () {
+      console.log("jQuery ready — attaching modal handler");
+      $(document).on("shown.bs.modal", "#modalAddAddress", function () {
+        console.log("modal shown — init map and load provinces");
+        initMap();
+        // if server already rendered provinces, no need to fetch; still attach change handler
+        attachProvinceChange();
+        // if a province is already selected, load its cities
+        var prov = document.getElementById("addrProvince");
+        if (prov) {
+          if (prov.value) {
+            try {
+              loadCities(prov.value);
+            } catch (e) {
+              console.warn("loadCities on show failed", e);
+            }
+          }
+          // but also refresh provinces list if empty
+          if (prov.options.length <= 1) {
+            loadProvinces().then(function () {
+              attachProvinceChange();
+              if (prov.value) loadCities(prov.value);
+            });
+          }
+        }
+        setTimeout(function () {
+          if (map) map.invalidateSize();
+        }, 300);
+      });
+    });
+
+    // fallback: if modal trigger clicked but modal not visible, force-show it
+    document.addEventListener("click", function (ev) {
+      var btn = ev.target.closest && ev.target.closest('[data-target="#modalAddAddress"]');
+      if (!btn) return;
+      try {
+        if (window.jQuery && jQuery.fn && jQuery.fn.modal) {
+          // let bootstrap handle normally
+          return;
+        }
+      } catch (e) {}
+
+      var modal = document.getElementById("modalAddAddress");
+      if (!modal) return;
+      // ensure backdrop
+      if (!document.querySelector(".modal-backdrop")) {
+        var db = document.createElement("div");
+        db.className = "modal-backdrop fade show";
+        document.body.appendChild(db);
+      }
+      modal.classList.add("show");
+      modal.style.display = "block";
+      modal.setAttribute("aria-modal", "true");
+      document.body.classList.add("modal-open");
+      setTimeout(function () {
+        if (window.map)
+          try {
+            window.map.invalidateSize();
+          } catch (e) {}
+      }, 300);
+    });
+  });
+</script>

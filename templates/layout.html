@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -60,13 +60,10 @@
             };
 
             if (payload.id && payload.email) {
-              // Guard: hanya kirim klaim kalau server belum menampilkan link Login
-              const serverShowsLogin = !!document.querySelector('a[href="/login"]');
+              // Guard: kirim klaim kalau Clerk.user ada dan belum diposting di sesi browser ini
               const alreadyPosted = localStorage.getItem("clerk_claim_posted");
 
-              if (!serverShowsLogin) {
-                console.log("Server already has a session (no /login link) — skipping claim");
-              } else if (alreadyPosted) {
+              if (alreadyPosted) {
                 console.log("Clerk claim already posted in this browser session — skipping duplicate");
               } else {
                 console.log("Posting Clerk user claim to server", payload.id, payload.email);
@@ -185,6 +182,10 @@
             e.preventDefault();
             console.log("Logout clicked, attempting Clerk.signOut then server logout");
             const doServerLogout = () => {
+              // Clear Clerk claim marker so a future sign-in will re-post to server
+              try {
+                localStorage.removeItem("clerk_claim_posted");
+              } catch (e) {}
               // Navigate to /logout so server clears session cookie
               window.location.href = "/logout";
             };
@@ -407,6 +408,10 @@
 
     <!-- Optional plugins -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- Argon JS -->
+    <!-- Plugins required by Argon -->
+    <script src="/public/js/plugins/perfect-scrollbar.jquery.min.js"></script>
 
     <!-- Argon JS -->
     <script src="/public/js/argon-design-system.js"></script>

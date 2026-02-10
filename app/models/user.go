@@ -15,6 +15,9 @@ type User struct {
 	LastName      string `gorm:"size:100;not null"`
 	Email         string `gorm:"size:100;not null;uniqueIndex"`
 	Password      string `gorm:"size:255;not null"`
+	Phone         string `gorm:"size:20"`
+	Gender        string `gorm:"size:10"`
+	Dob           *time.Time `gorm:"type:date"`
 	RememberToken string `gorm:"size:255;not null"`
 	CreatedAt     time.Time
 	UpdateAt      time.Time
@@ -62,6 +65,9 @@ func (u *User) CreateUser(db *gorm.DB, param *User) (*User, error) {
 		LastName:      param.LastName,
 		Email:         param.Email,
 		Password:      param.Password,
+		Phone:         param.Phone,
+		Gender:        param.Gender,
+		Dob:           param.Dob,
 	}
 
 	err := db.Debug().Create(&user).Error
