@@ -3,7 +3,9 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/sessions"
@@ -22,6 +24,7 @@ func (server *Server) ClaimClerk(w http.ResponseWriter, r *http.Request) {
 		Email     string `json:"email"`
 		FirstName string `json:"firstName"`
 		LastName  string `json:"lastName"`
+		SessionID string `json:"sessionId"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -31,6 +34,44 @@ func (server *Server) ClaimClerk(w http.ResponseWriter, r *http.Request) {
 
 	// debug log for incoming claims
 	fmt.Println("ClaimClerk called with payload:", payload)
+
+	// If CLERK_SECRET_KEY is set, perform server-side verification of the Clerk session id.
+	clerkSecret := os.Getenv("CLERK_SECRET_KEY")
+	if clerkSecret != "" {
+		if payload.SessionID == "" {
+			http.Error(w, "missing sessionId for server-side verification", http.StatusBadRequest)
+			return
+		}
+
+		// verify session via Clerk REST API
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.clerk.dev/v1/sessions/%s", payload.SessionID), nil)
+		if err != nil {
+			fmt.Println("ClaimClerk: failed to build verification request:", err)
+			http.Error(w, "failed to verify session", http.StatusInternalServerError)
+			return
+		}
+		req.Header.Set("Authorization", "Bearer "+clerkSecret)
+		req.Header.Set("Accept", "application/json")
+
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("ClaimClerk: verification request failed:", err)
+			http.Error(w, "failed to verify session", http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		body, _ := ioutil.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			fmt.Println("ClaimClerk: Clerk verification failed, status:", resp.StatusCode, "body:", string(body))
+			http.Error(w, "invalid clerk session", http.StatusUnauthorized)
+			return
+		}
+
+		// Optional: we could parse the response body to verify user id/email match payload.
+		fmt.Println("ClaimClerk: Clerk session verified for sessionId", payload.SessionID)
+	}
 
 	if payload.ID == "" || payload.Email == "" {
 		http.Error(w, "missing id or email", http.StatusBadRequest)
@@ -74,6 +115,9 @@ func (server *Server) ClaimClerk(w http.ResponseWriter, r *http.Request) {
 		Email:     payload.Email,
 		Password:  hashed,
 	}
+
+	// ensure default role
+	newUser.Role = "user"
 
 	created, err := userModel.CreateUser(server.DB, newUser)
 	if err != nil {

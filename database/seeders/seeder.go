@@ -11,8 +11,10 @@ type Seeder struct {
 
 func RegisterSeeders(db *gorm.DB) []Seeder {
 	return []Seeder{
+		{Seeder: fakers.AdminFaker(db)},
 		{Seeder: fakers.UserFaker(db)},
 		{Seeder: fakers.ProductFaker(db)},
+		{Seeder: fakers.OrdersFaker(db)},
 	}
 }
 

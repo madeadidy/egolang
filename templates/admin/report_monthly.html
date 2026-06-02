@@ -1,0 +1,28 @@
+{{ define "admin/report_monthly" }}
+<div class="container mt-4">
+  <h3>Monthly Transactions — {{ .month }}/{{ .year }}</h3>
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Customer</th>
+        <th>Date</th>
+        <th>Items</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .orders }}
+      <tr>
+        <td>{{ .Code }}</td>
+        <td>{{ if .User }}{{ .User.FirstName }} {{ .User.LastName }}{{ end }}</td>
+        <td>{{ .OrderDate.Format "2006-01-02" }}</td>
+        <td>{{ len .OrderItems }}</td>
+        <td>{{ .GrandTotal.String }}</td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  <a href="/admin/reports/monthly.csv?month={{ .month }}&year={{ .year }}" class="btn btn-sm btn-outline-primary">Download CSV</a>
+</div>
+{{ end }}

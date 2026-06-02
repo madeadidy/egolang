@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -39,12 +41,45 @@ func (server *Server) AuthHeaderMiddleware(next http.Handler) http.Handler {
             parts := strings.SplitN(auth, " ", 2)
             if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
                 token := parts[1]
+                // log incoming auth header for debugging
+                fmt.Println("AuthHeaderMiddleware: Authorization header received (masked): Bearer ****")
                 ctx := context.WithValue(r.Context(), ctxKeyAuthToken, token)
                 r = r.WithContext(ctx)
             }
         }
 
         next.ServeHTTP(w, r)
+    })
+}
+
+// RequireAdminAuth mengizinkan akses jika salah satu terpenuhi:
+// - user sudah login melalui session, atau
+// - header Authorization berisi Bearer token yang cocok dengan env ADMIN_API_KEY
+func (server *Server) RequireAdminAuth(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // cek token dari context (diset oleh AuthHeaderMiddleware) — prioritaskan token
+        token := GetAuthTokenFromContext(r)
+        if token != "" {
+            if adminKey := os.Getenv("ADMIN_API_KEY"); adminKey != "" && token == adminKey {
+                next.ServeHTTP(w, r)
+                return
+            }
+        }
+
+        // cek session + peran admin
+        if IsLoggedIn(r) {
+            user := server.CurrentUser(w, r)
+            if user != nil && (user.Role == "admin" || user.Role == "superadmin") {
+                next.ServeHTTP(w, r)
+                return
+            }
+            // logged in but bukan admin
+            http.Error(w, "forbidden", http.StatusForbidden)
+            return
+        }
+
+        // unauthorized
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
     })
 }
 

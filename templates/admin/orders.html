@@ -1,0 +1,27 @@
+{{ define "admin/orders" }}
+<div class="container mt-4">
+  <h3>Orders</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Customer</th>
+        <th>Date</th>
+        <th>Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .orders }}
+      <tr>
+        <td>{{ .Code }}</td>
+        <td>{{ if .User }}{{ .User.FirstName }} {{ .User.LastName }}{{ end }}</td>
+        <td>{{ .OrderDate.Format "2006-01-02" }}</td>
+        <td>{{ .GrandTotal.String }}</td>
+        <td><a href="/admin/orders/{{ .ID }}" class="btn btn-sm btn-link">Detail</a></td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}

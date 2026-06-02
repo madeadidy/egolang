@@ -10,6 +10,7 @@ type Address struct {
 	IsPrimary  bool
 	CityID 	   string `gorm:"size:100"`
 	ProvinceID string `gorm:"size:255"`
+	DistrictID string `gorm:"size:100"`
 	Address1   string `gorm:"size:255"`
 	Address2   string `gorm:"size:255"`
 	Phone      string `gorm:"size:100"`

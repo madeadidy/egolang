@@ -57,6 +57,8 @@
               email: clerkUser.email || clerkUser.primaryEmailAddress?.emailAddress || clerkUser.primary_email || undefined,
               firstName: clerkUser.firstName || clerkUser.first_name || "",
               lastName: clerkUser.lastName || clerkUser.last_name || "",
+              // include Clerk session id when available so server can verify server-side
+              sessionId: (Clerk && Clerk.session && Clerk.session.id) || Clerk?.sessionId || Clerk?.userId || undefined,
             };
 
             if (payload.id && payload.email) {

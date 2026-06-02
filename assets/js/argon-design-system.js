@@ -37,11 +37,11 @@ var $tagsinput = $('.tagsinput');
   if (isWindows) {
     // if we are on windows OS we activate the perfectScrollbar function
 
-    $('.wrapper .login-page, .register-page, .card').perfectScrollbar();
+    if ($.fn && typeof $.fn.perfectScrollbar === 'function') {
+      $('.wrapper .login-page, .register-page, .card').perfectScrollbar();
+    }
 
-
-    if ($('.tab-content .table-responsive').length != 0) {
-
+    if (typeof PerfectScrollbar === 'function' && $('.tab-content .table-responsive').length != 0) {
       $('.table-responsive').each(function() {
         var ps2 = new PerfectScrollbar($(this)[0]);
       });

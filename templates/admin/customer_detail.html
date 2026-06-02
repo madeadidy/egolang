@@ -1,0 +1,27 @@
+{{ define "admin/customer_detail" }}
+<div class="container mt-4">
+  <h3>Customer: {{ .customer.FirstName }} {{ .customer.LastName }}</h3>
+  <p>Email: {{ .customer.Email }} — Phone: {{ .customer.Phone }}</p>
+  <h5>Orders</h5>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Date</th>
+        <th>Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .orders }}
+      <tr>
+        <td>{{ .Code }}</td>
+        <td>{{ .OrderDate.Format "2006-01-02" }}</td>
+        <td>{{ .GrandTotal.String }}</td>
+        <td><a href="/admin/orders/{{ .ID }}" class="btn btn-sm btn-link">Detail</a></td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}

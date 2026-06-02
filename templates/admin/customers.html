@@ -1,0 +1,25 @@
+{{ define "admin/customers" }}
+<div class="container mt-4">
+  <h3>Customers</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .customers }}
+      <tr>
+        <td>{{ .FirstName }} {{ .LastName }}</td>
+        <td>{{ .Email }}</td>
+        <td>{{ .Phone }}</td>
+        <td><a href="/admin/customers/{{ .ID }}" class="btn btn-sm btn-link">View</a></td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}

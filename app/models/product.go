@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -56,15 +57,22 @@ func (p *Product) GetProducts(db *gorm.DB, perPage int, page int) (*[]Product, i
 		Offset(offset).
 		Find(&products).Error
 
-		for _, p := range products {
-    log.Println("Loaded product:", p.Name, "Price:", p.Price.StringFixed(2))
-}
+		for _, prod := range products {
+			log.Println("Loaded product:", prod.Name, "Price:", prod.Price.StringFixed(2))
+		}
 
-	if err != nil {
-		return nil, 0, err
+		if err != nil {
+			return nil, 0, err
+		}
+
+		return &products, count, nil
 	}
 
-	return &products, count, nil
+func (p *Product) BeforeCreate(tx *gorm.DB) error {
+    if p.ID == "" {
+        p.ID = uuid.New().String()
+    }
+    return nil
 }
 
 func (p *Product) FindBySlug(db *gorm.DB, slug string) (*Product, error) {

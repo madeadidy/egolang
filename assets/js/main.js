@@ -79,7 +79,7 @@ $(function () {
             $(".shipping_fee_options").append(
               `<option value="${shipping_fee_option.service}-${shipping_fee_option.fee}">
                 ${shipping_fee_option.service} - ${formatRupiah(shipping_fee_option.fee)}
-              </option>`
+              </option>`,
             );
           });
         } else {
@@ -149,5 +149,90 @@ $(function () {
         input.val(current - 1);
       }
     });
+  });
+
+  // Delegated handlers for profile modal selects (addrProvince / addrCity)
+  $(document).on("change", "#addrProvince", function () {
+    var provinceID = $(this).val();
+    var $city = $("#addrCity");
+    $city.prop("disabled", true).empty().append('<option value="">Memuat...</option>');
+    if (!provinceID) {
+      $city.empty().append('<option value="">--</option>');
+      return;
+    }
+    $.ajax({
+      url: "/carts/cities?province_id=" + encodeURIComponent(provinceID),
+      method: "GET",
+      success: function (result) {
+        $city.empty().append('<option value="">Pilih Kota</option>');
+        if (result && result.data) {
+          $.each(result.data, function (i, city) {
+            $city.append('<option value="' + (city.id || city.ID || "") + '">' + (city.name || city.Name || "") + "</option>");
+          });
+        }
+        $city.prop("disabled", false);
+      },
+      error: function (xhr) {
+        console.error("Gagal mengambil data kota", xhr && xhr.responseText);
+        $city.empty().append('<option value="">Gagal memuat kota</option>');
+      },
+    });
+  });
+
+  $(document).on("change", "#addrCity", function () {
+    var cityID = $(this).val();
+    var $district = $("#addrDistrict");
+    var $postcode = $("#addrPostcode");
+    $district.empty().append('<option value="">Memuat...</option>');
+    $postcode.empty().append('<option value="">Memuat...</option>');
+    if (!cityID) {
+      $district.empty().append('<option value="">--</option>');
+      $postcode.empty().append('<option value="">--</option>');
+      return;
+    }
+    $.getJSON("/carts/districts?city_id=" + encodeURIComponent(cityID))
+      .done(function (res) {
+        $district.empty().append('<option value="">Pilih Kecamatan</option>');
+        if (res && res.data) {
+          $.each(res.data, function (i, d) {
+            $district.append('<option value="' + (d.id || d.ID || "") + '">' + (d.name || d.Name || "") + "</option>");
+          });
+        }
+      })
+      .fail(function (xhr) {
+        console.error("Gagal memuat kecamatan", xhr && xhr.responseText);
+        $district.empty().append('<option value="">Gagal memuat kecamatan</option>');
+      });
+
+    $.getJSON("/carts/postcodes?city_id=" + encodeURIComponent(cityID))
+      .done(function (res) {
+        $postcode.empty().append('<option value="">Pilih Kode Pos</option>');
+        var $manual = $("#addrPostcodeInput");
+        if (res && res.data && res.data.length > 0) {
+          // populate select and ensure manual input is hidden
+          $.each(res.data, function (i, p) {
+            var code = p.code || p.Code || "";
+            $postcode.append('<option value="' + code + '">' + code + "</option>");
+          });
+          $postcode.show().prop("disabled", false);
+          if ($manual && $manual.length) {
+            $manual.hide().prop("disabled", true);
+          }
+        } else {
+          // no postcodes -> show manual input and disable select
+          $postcode.hide().prop("disabled", true);
+          if ($manual && $manual.length) {
+            $manual.show().prop("disabled", false);
+          }
+        }
+      })
+      .fail(function (xhr) {
+        console.error("Gagal memuat kode pos", xhr && xhr.responseText);
+        var $manual = $("#addrPostcodeInput");
+        $postcode.empty().append('<option value="">Gagal memuat kode pos</option>').hide().prop("disabled", true);
+        if ($manual && $manual.length) {
+          $manual.show().prop("disabled", false);
+        }
+      });
   });
 });

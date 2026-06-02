@@ -74,7 +74,7 @@ type Result struct {
 	Message string `json:"message"`
 }
 
-var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+var store *sessions.CookieStore
 var sessionShoppingCart = "shopping-cart-session"
 var sessionFlash = "flash-session"
 var sessionUser = "user-session"
@@ -83,13 +83,24 @@ func (server *Server) Initialize(appConfig AppConfig, dbConfig DBConfig) {
 
 	fmt.Println("Welcome to " + appConfig.AppName)
 
-	// Ensure cookie store has explicit options suitable for local development
-	// so the session cookie is created and sent on localhost.
+	// Initialize cookie store here so environment variables (loaded in app.Run)
+	// are available. This avoids creating the store at package init time
+	// where SESSION_KEY may be empty.
+	if store == nil {
+		store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+	}
+
+	// Ensure cookie store has explicit options. Use Secure cookies in non-development.
+	secureFlag := false
+	if appConfig.AppEnv != "development" {
+		secureFlag = true
+	}
 	store.Options = &sessions.Options{
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   secureFlag,
 		MaxAge:   86400,
+		SameSite: http.SameSiteLaxMode,
 	}
 
 	server.initializeDB(dbConfig)
@@ -285,7 +296,7 @@ func (server *Server) CalculateShippingFee(shippingParams models.ShippingFeePara
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	log.Println("🚀 Raw Ongkir Response:", string(body))
+	log.Println(" Raw Ongkir Response:", string(body))
 
 	var ongkirResponse models.OngkirResponse
 	if err := json.Unmarshal(body, &ongkirResponse); err != nil {
@@ -341,6 +352,7 @@ func GetFlash(w http.ResponseWriter, r *http.Request, name string) []string {
 
 func IsLoggedIn(r *http.Request) bool {
 	session, _ := store.Get(r, sessionUser)
+	fmt.Println("DEBUG IsLoggedIn: session.Values['id'] =", session.Values["id"])
 	return session.Values["id"] != nil
 }
 
@@ -360,16 +372,25 @@ func (server *Server) CurrentUser(w http.ResponseWriter, r *http.Request) *model
 	}
 
 	session, _ := store.Get(r, sessionUser)
-
+	fmt.Println("DEBUG CurrentUser: raw session.Values['id'] =", session.Values["id"], "(type:", fmt.Sprintf("%T", session.Values["id"]), ")")
 	userModel := models.User{}
-	user, err := userModel.FindByID(server.DB, session.Values["id"].(string))
+	idStr, ok := session.Values["id"].(string)
+	if !ok {
+		fmt.Println("DEBUG CurrentUser: session id is not a string, clearing session and returning nil")
+		session.Values["id"] = nil
+		session.Save(r, w)
+		return nil
+	}
+	user, err := userModel.FindByID(server.DB, idStr)
 	if err != nil {
+		fmt.Println("DEBUG CurrentUser: failed to find user by id", session.Values["id"], "error:", err)
 		session.Values["id"] = nil
 		session.Save(r, w)
 		return nil
 	}
 
 	return user
+
 }
 
 // DefaultRenderData menggabungkan data template umum seperti Clerk publishable key dan user saat ini.

@@ -1,0 +1,9 @@
+9/2 udah aman usernamenya muncul, fokus ke profile
+10/2 profil aman, fe & be alamat aman
+18/2 membuat dashboard admin, data users,cust, orders muncul aman 
+19/2 9.29 data users,cust, orders muncul aman, 10.57 masih failed create, 13.27 udah bisa crud product (cek kenapa gak bisa menjalankan backend)
+19/2 15.15 admin udah bisa login
+19/2 19.15 products, users, cust, order, report, account menu clear
+
+localStorage.removeItem("clerk_claim_posted")
+window.location.reload()

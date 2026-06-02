@@ -88,13 +88,51 @@
                 </div>
 
                 <div id="alamat" class="tab-pane fade">
-                  <h5 class="mt-3">Alamat Utama</h5>
+                  <h5 class="mt-3">Alamat Saya</h5>
+                  {{ $addrs := .addresses }} {{ if $addrs }}
+                  <div class="list-group mb-3">
+                    {{ range $i, $a := $addrs }}
+                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                      <div class="mr-3" style="flex: 1">
+                        <div class="d-flex justify-content-between">
+                          <div>
+                            <strong>{{ if $a.Name }}{{ $a.Name }}{{ else }}Nama Penerima{{ end }}</strong>
+                            {{ if $a.Phone }} <small class="text-muted">{{ $a.Phone }}</small>{{ end }}
+                          </div>
+                          <div>{{ if $a.IsPrimary }}<span class="badge badge-warning">Utama</span>{{ end }}</div>
+                        </div>
+                        <div class="mt-2 text-muted small">{{ $a.Address1 }}{{ if $a.Address2 }}, {{ $a.Address2 }}{{ end }}</div>
+                        <div class="mt-1 text-muted small">Kode Pos: {{ $a.PostCode }}</div>
+                        <div class="mt-1 text-muted small">Prov: {{ $a.ProvinceID }} · Kota: {{ $a.CityID }} · Kec: {{ $a.DistrictID }}</div>
+                      </div>
+                      <div class="pl-3 text-right">
+                        <div class="mb-2">
+                          <a href="/profile/address/edit?id={{ $a.ID }}" class="btn btn-link btn-sm p-0 mr-2">Ubah</a>
+                          <form method="POST" action="/profile/address/delete" style="display: inline">
+                            <input type="hidden" name="id" value="{{ $a.ID }}" />
+                            <button type="submit" class="btn btn-link btn-sm text-danger p-0">Hapus</button>
+                          </form>
+                        </div>
+                        {{ if not $a.IsPrimary }}
+                        <form method="POST" action="/profile/address/set-primary">
+                          <input type="hidden" name="id" value="{{ $a.ID }}" />
+                          <button type="submit" class="btn btn-outline-secondary btn-sm">Atur sebagai utama</button>
+                        </form>
+                        {{ end }}
+                      </div>
+                    </div>
+                    {{ end }}
+                  </div>
+                  {{ else }}
                   <div class="card mb-3">
                     <div class="card-body">
                       <p>Belum ada alamat.</p>
                     </div>
                   </div>
-                  <button class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#modalAddAddress">Tambah Alamat</button>
+                  {{ end }}
+                  <div class="text-right">
+                    <button class="btn btn-primary" data-toggle="modal" data-target="#modalAddAddress">+ Tambah Alamat Baru</button>
+                  </div>
 
                   <!-- Modal: Alamat Baru -->
                   <div class="modal fade" id="modalAddAddress" tabindex="-1" role="dialog" aria-labelledby="modalAddAddressLabel" aria-hidden="true">
@@ -151,15 +189,22 @@
                                     </select>
                                   </div>
                                   <div class="tab-pane fade" id="pane-kota" role="tabpanel">
-                                    <select id="addrCity" name="city_id" class="form-control" size="8">
+                                    <select id="addrCity" name="city_id" class="form-control">
                                       <option value="">--</option>
                                     </select>
                                   </div>
                                   <div class="tab-pane fade" id="pane-kecamatan" role="tabpanel">
-                                    <input type="text" class="form-control" name="district" placeholder="Kecamatan" />
+                                    <select id="addrDistrict" name="district_id" class="form-control">
+                                      <option value="">--</option>
+                                    </select>
                                   </div>
                                   <div class="tab-pane fade" id="pane-postcode" role="tabpanel">
-                                    <input type="text" class="form-control" name="postcode" placeholder="Kode Pos" />
+                                    <div id="addrPostcodeContainer">
+                                      <select id="addrPostcode" name="postcode" class="form-control">
+                                        <option value="">--</option>
+                                      </select>
+                                      <input id="addrPostcodeInput" name="postcode" class="form-control mt-2" placeholder="Masukkan Kode Pos jika tidak tersedia" style="display: none" />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -316,8 +361,12 @@
     // fetch and populate cities for a province id
     function loadCities(pid) {
       var citySel = document.getElementById("addrCity");
+      var districtSel = document.getElementById("addrDistrict");
+      var postcodeSel = document.getElementById("addrPostcode");
       if (!citySel) return;
       citySel.innerHTML = '<option value="">Memuat...</option>';
+      if (districtSel) districtSel.innerHTML = '<option value="">--</option>';
+      if (postcodeSel) postcodeSel.innerHTML = '<option value="">--</option>';
       fetch("/carts/cities?province_id=" + encodeURIComponent(pid))
         .then(function (res) {
           if (!res.ok) throw new Error("HTTP " + res.status);
@@ -332,6 +381,8 @@
                 var opt = document.createElement("option");
                 opt.value = c.id || c.ID || c.city_id || "";
                 opt.text = c.name || c.Name || c.city_name || "";
+                // store zipcode (if provided by API) for fallback
+                opt.dataset.zip = c.zip_code || c.ZipCode || c.zip || c.postcode || "";
                 citySel.appendChild(opt);
               });
               console.log("loadCities appended", citySel.options.length - 1, "cities");
@@ -345,6 +396,113 @@
         .catch(function (err) {
           console.warn("Gagal memuat kota", err);
           citySel.innerHTML = '<option value="">Gagal memuat kota</option>';
+        });
+      // Ensure we only attach the city change handler once
+      if (!citySel._hasAttach) {
+        citySel._hasAttach = true;
+        citySel.addEventListener("change", function () {
+          var cityID = citySel.value;
+          if (!cityID) {
+            if (districtSel) districtSel.innerHTML = '<option value="">--</option>';
+            if (postcodeSel) postcodeSel.innerHTML = '<option value="">--</option>';
+            return;
+          }
+          // Fetch kecamatan and kodepos for chosen city
+          fetchDistrictsAndPostcodes(cityID, districtSel, postcodeSel);
+        });
+      }
+
+      // If a city is already selected (e.g., server prefilled), populate districts/postcodes immediately
+      if (citySel.value) {
+        // try to prefill postcode from option dataset if available
+        var selOpt = citySel.options[citySel.selectedIndex];
+        if (selOpt && selOpt.dataset && selOpt.dataset.zip && selOpt.dataset.zip !== "") {
+          if (postcodeSel) {
+            postcodeSel.innerHTML = '<option value="">Pilih Kode Pos</option>';
+            var opt = document.createElement("option");
+            opt.value = selOpt.dataset.zip;
+            opt.text = selOpt.dataset.zip;
+            postcodeSel.appendChild(opt);
+          }
+        }
+        fetchDistrictsAndPostcodes(citySel.value, districtSel, postcodeSel);
+      }
+    }
+
+    // helper: fetch districts and postcodes for a city and populate selects
+    function fetchDistrictsAndPostcodes(cityID, districtSel, postcodeSel) {
+      if (!cityID) return;
+      fetch("/carts/districts?city_id=" + encodeURIComponent(cityID))
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (json) {
+          if (districtSel) {
+            districtSel.innerHTML = '<option value="">Pilih Kecamatan</option>';
+            if (json && json.data) {
+              json.data.forEach(function (d) {
+                var opt = document.createElement("option");
+                opt.value = d.id || d.ID || d.district_id || "";
+                opt.text = d.name || d.Name || d.district_name || "";
+                districtSel.appendChild(opt);
+              });
+            }
+          }
+        })
+        .catch(function (err) {
+          console.warn("Gagal memuat kecamatan", err);
+          if (districtSel) districtSel.innerHTML = '<option value="">Gagal memuat kecamatan</option>';
+        });
+
+      fetch("/carts/postcodes?city_id=" + encodeURIComponent(cityID))
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (json) {
+          if (!postcodeSel) return;
+          var existingInput = document.getElementById("addrPostcodeInput");
+
+          // clear select first
+          postcodeSel.innerHTML = '<option value="">Pilih Kode Pos</option>';
+
+          if (json && Array.isArray(json.data) && json.data.length > 0) {
+            // populate select and show it; disable manual input
+            json.data.forEach(function (p) {
+              var opt = document.createElement("option");
+              opt.value = p.code || p.Code || p.postcode || "";
+              opt.text = p.code || p.Code || p.postcode || "";
+              postcodeSel.appendChild(opt);
+            });
+            postcodeSel.style.display = "";
+            postcodeSel.disabled = false;
+            if (existingInput) {
+              existingInput.style.display = "none";
+              existingInput.disabled = true;
+            }
+          } else {
+            // no postcodes available -> show manual input as fallback; disable select
+            postcodeSel.style.display = "none";
+            postcodeSel.disabled = true;
+            if (existingInput) {
+              existingInput.style.display = "";
+              existingInput.disabled = false;
+            }
+          }
+        })
+        .catch(function (err) {
+          console.warn("Gagal memuat kodepos", err);
+          if (postcodeSel) {
+            postcodeSel.innerHTML = '<option value="">Gagal memuat kodepos</option>';
+            postcodeSel.style.display = "none";
+            postcodeSel.disabled = true;
+          }
+          var existingInput = document.getElementById("addrPostcodeInput");
+          if (existingInput) {
+            existingInput.style.display = "";
+            existingInput.disabled = false;
+          }
         });
     }
 

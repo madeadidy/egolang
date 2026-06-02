@@ -1,0 +1,14 @@
+{{ define "admin/order_detail" }}
+<div class="container mt-4">
+  <h3>Order {{ .order.Code }}</h3>
+  <p>Customer: {{ if .order.User }}{{ .order.User.FirstName }} {{ .order.User.LastName }}{{ end }}</p>
+  <p>Date: {{ .order.OrderDate.Format "2006-01-02 15:04" }}</p>
+  <h5>Items</h5>
+  <ul>
+    {{ range .order.OrderItems }}
+    <li>{{ .Product.Name }} × {{ .Quantity }} — {{ .Price.String }}</li>
+    {{ end }}
+  </ul>
+  <p>Total: {{ .order.GrandTotal.String }}</p>
+</div>
+{{ end }}

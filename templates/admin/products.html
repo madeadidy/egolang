@@ -1,0 +1,31 @@
+{{ define "admin/products" }}
+<div class="container mt-4">
+  <h3>Products</h3>
+  <div class="mb-2"><a href="/admin/products/new" class="btn btn-primary">New Product</a></div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Stock</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .products }}
+      <tr>
+        <td>{{ .Name }}</td>
+        <td>{{ .Price.StringFixed 2 }}</td>
+        <td>{{ .Stock }}</td>
+        <td>
+          <a href="/admin/products/{{ .ID }}/edit" class="btn btn-sm btn-link">Edit</a>
+          <form method="POST" action="/admin/products/{{ .ID }}/delete" style="display: inline">
+            <button class="btn btn-sm btn-link text-danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ end }}

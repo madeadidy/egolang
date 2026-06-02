@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codeuiprogramming/e-commerce/app/helpers"
 	"github.com/codeuiprogramming/e-commerce/app/models"
@@ -217,6 +218,134 @@ func (server *Server) GetProvinces(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(result)
+}
+
+// Handler untuk mendapatkan kecamatan berdasarkan city_id
+func (server *Server) GetDistrictsByCity(w http.ResponseWriter, r *http.Request) {
+    cityID := r.URL.Query().Get("city_id")
+    if cityID == "" {
+        http.Error(w, "city_id is required", http.StatusBadRequest)
+        return
+    }
+    // Try fetching districts from external API configured by API_ONGKIR_BASE_URL
+    endpoint := os.Getenv("API_ONGKIR_BASE_URL") + "destination/district/" + cityID
+    req, err := http.NewRequest("GET", endpoint, nil)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    req.Header.Add("Key", os.Getenv("API_ONGKIR_KEY"))
+
+    client := &http.Client{Timeout: 6 * time.Second}
+    resp, err := client.Do(req)
+    if err != nil {
+        // fallback: return empty list
+        res := Result{Code: 200, Data: []interface{}{}, Message: "Success"}
+        b, _ := json.Marshal(res)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        w.Write(b)
+        return
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Println("DEBUG GetDistrictsByCity: raw response:", string(body))
+    var parsed struct {
+        Meta models.Meta                 `json:"meta"`
+        Data []map[string]interface{} `json:"data"`
+    }
+    if err := json.Unmarshal(body, &parsed); err != nil {
+        // if parsing fails, return empty list
+        res := Result{Code: 200, Data: []interface{}{}, Message: "Success"}
+        b, _ := json.Marshal(res)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        w.Write(b)
+        return
+    }
+
+    res := Result{Code: 200, Data: parsed.Data, Message: "Success"}
+    result, err := json.Marshal(res)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(result)
+}
+
+// Handler untuk mendapatkan kode pos berdasarkan city_id
+func (server *Server) GetPostcodesByCity(w http.ResponseWriter, r *http.Request) {
+    cityID := r.URL.Query().Get("city_id")
+    if cityID == "" {
+        http.Error(w, "city_id is required", http.StatusBadRequest)
+        return
+    }
+    // Try fetching postcodes from external API configured by API_ONGKIR_BASE_URL
+    // try path-style endpoint first
+    endpoint := os.Getenv("API_ONGKIR_BASE_URL") + "destination/postcode/" + cityID
+    req, err := http.NewRequest("GET", endpoint, nil)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    req.Header.Add("Key", os.Getenv("API_ONGKIR_KEY"))
+
+    client := &http.Client{Timeout: 6 * time.Second}
+    resp, err := client.Do(req)
+    if err != nil {
+        res := Result{Code: 200, Data: []interface{}{}, Message: "Success"}
+        b, _ := json.Marshal(res)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        w.Write(b)
+        return
+    }
+    defer resp.Body.Close()
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Println("DEBUG GetPostcodesByCity: raw response:", string(body))
+
+    // If we received 404 (path not supported), try query param form
+    if resp.StatusCode == http.StatusNotFound {
+        alt := os.Getenv("API_ONGKIR_BASE_URL") + "destination/postcode?city_id=" + cityID
+        fmt.Println("GetPostcodesByCity: trying alternative endpoint", alt)
+        req2, err2 := http.NewRequest("GET", alt, nil)
+        if err2 == nil {
+            req2.Header.Add("Key", os.Getenv("API_ONGKIR_KEY"))
+            resp2, err2 := client.Do(req2)
+            if err2 == nil {
+                defer resp2.Body.Close()
+                body2, _ := ioutil.ReadAll(resp2.Body)
+                fmt.Println("DEBUG GetPostcodesByCity (alt): raw response:", string(body2))
+                body = body2
+            }
+        }
+    }
+
+    var parsed struct {
+        Meta models.Meta                 `json:"meta"`
+        Data []map[string]interface{} `json:"data"`
+    }
+    if err := json.Unmarshal(body, &parsed); err != nil {
+        res := Result{Code: 200, Data: []interface{}{}, Message: "Success"}
+        b, _ := json.Marshal(res)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        w.Write(b)
+        return
+    }
+
+    res := Result{Code: 200, Data: parsed.Data, Message: "Success"}
+    result, err := json.Marshal(res)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
     w.Write(result)

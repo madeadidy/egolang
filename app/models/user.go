@@ -18,6 +18,7 @@ type User struct {
 	Phone         string `gorm:"size:20"`
 	Gender        string `gorm:"size:10"`
 	Dob           *time.Time `gorm:"type:date"`
+	Role          string `gorm:"size:50;default:'user'"`
 	RememberToken string `gorm:"size:255;not null"`
 	CreatedAt     time.Time
 	UpdateAt      time.Time
@@ -59,12 +60,16 @@ func (u *User) FindByID(db *gorm.DB, userID string) (*User, error) {
 }
 
 func (u *User) CreateUser(db *gorm.DB, param *User) (*User, error) {
+	if param.Role == "" {
+		param.Role = "user"
+	}
 	user := &User{
 		ID:            param.ID,
 		FirstName:     param.FirstName,
 		LastName:      param.LastName,
 		Email:         param.Email,
 		Password:      param.Password,
+		Role:          param.Role,
 		Phone:         param.Phone,
 		Gender:        param.Gender,
 		Dob:           param.Dob,

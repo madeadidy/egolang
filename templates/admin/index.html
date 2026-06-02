@@ -1,0 +1,22 @@
+{{ define "admin/index" }}
+<div class="container mt-4">
+  <h3>Admin Dashboard</h3>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card p-3">Users<br /><strong>{{ .userCount }}</strong></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">Products<br /><strong>{{ .productCount }}</strong></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">Orders<br /><strong>{{ .orderCount }}</strong></div>
+    </div>
+  </div>
+  <div class="mt-3">
+    <a href="/admin/products" class="btn btn-primary">Manage Products</a>
+    <a href="/admin/orders" class="btn btn-secondary">View Orders</a>
+    <a href="/admin/customers" class="btn btn-info">Customers</a>
+    <a href="/admin/reports/monthly" class="btn btn-outline-dark">Monthly Report</a>
+  </div>
+</div>
+{{ end }}

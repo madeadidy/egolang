@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/codeuiprogramming/e-commerce/app/helpers"
@@ -101,6 +103,7 @@ func (server *Server) DoRegister(w http.ResponseWriter, r *http.Request) {
 		Email:         email,
 		Password:      hashedPassword,
 	}
+	params.Role = "user"
 
 	user, err := userModel.CreateUser(server.DB, params)
 	if err != nil {
@@ -185,6 +188,18 @@ func (server *Server) Profile(w http.ResponseWriter, r *http.Request) {
 		data["provinces"] = provinces
 	} else {
 		data["provinces"] = nil
+	}
+
+	// load addresses for this user so template can render saved addresses
+	if u != nil {
+		var addrs []models.Address
+		if err := server.DB.Where("user_id = ?", u.ID).Order("created_at desc").Find(&addrs).Error; err == nil {
+			data["addresses"] = addrs
+		} else {
+			data["addresses"] = nil
+		}
+	} else {
+		data["addresses"] = nil
 	}
 
 	_ = render.HTML(w, http.StatusOK, "profile", data)
@@ -331,8 +346,9 @@ func (server *Server) CreateAddress(w http.ResponseWriter, r *http.Request) {
 	phone := r.FormValue("phone")
 	provinceID := r.FormValue("province_id")
 	cityID := r.FormValue("city_id")
-	// district field omitted (not stored) -- use address2 for extra details if needed
-	postcode := r.FormValue("postcode")
+	// district field (stored) and postcode
+	districtID := r.FormValue("district_id")
+	postcode := strings.TrimSpace(r.FormValue("postcode"))
 	address1 := r.FormValue("address1")
 	address2 := r.FormValue("address2")
 
@@ -343,10 +359,24 @@ func (server *Server) CreateAddress(w http.ResponseWriter, r *http.Request) {
 		IsPrimary: false,
 		CityID:    cityID,
 		ProvinceID: provinceID,
+		DistrictID: districtID,
 		Address1:  address1,
 		Address2:  address2,
 		Phone:     phone,
 		PostCode:  postcode,
+	}
+
+	// simple postcode validation: must be 5 digits
+	if postcode == "" {
+		SetFlash(w, r, "error", "Kode pos harus diisi")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	m := regexp.MustCompile(`^[0-9]{5}$`)
+	if !m.MatchString(postcode) {
+		SetFlash(w, r, "error", "Kode pos tidak valid — harus 5 digit angka")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
 	}
 
 	if err := server.DB.Create(addr).Error; err != nil {
@@ -355,6 +385,148 @@ func (server *Server) CreateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("CreateAddress: saved address id=", addr.ID, "user=", user.ID, "city=", cityID, "district=", districtID, "postcode=", postcode)
+
 	SetFlash(w, r, "success", "Alamat berhasil ditambahkan")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// DeleteAddress deletes an address owned by the current user
+func (server *Server) DeleteAddress(w http.ResponseWriter, r *http.Request) {
+	if !IsLoggedIn(r) {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	user := server.CurrentUser(w, r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		SetFlash(w, r, "error", "failed to parse form")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	id := r.FormValue("id")
+	if id == "" {
+		SetFlash(w, r, "error", "invalid address id")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	// ensure only user's own address is deleted
+	if err := server.DB.Where("id = ? AND user_id = ?", id, user.ID).Delete(&models.Address{}).Error; err != nil {
+		SetFlash(w, r, "error", "failed to delete address")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	SetFlash(w, r, "success", "Alamat berhasil dihapus")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// SetPrimaryAddress marks an address as the primary address for the current user
+func (server *Server) SetPrimaryAddress(w http.ResponseWriter, r *http.Request) {
+	if !IsLoggedIn(r) {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	user := server.CurrentUser(w, r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		SetFlash(w, r, "error", "failed to parse form")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	id := r.FormValue("id")
+	if id == "" {
+		SetFlash(w, r, "error", "invalid address id")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	tx := server.DB.Begin()
+	if tx.Error != nil {
+		SetFlash(w, r, "error", "database error")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	// unset primary flag for all user's addresses
+	if err := tx.Model(&models.Address{}).Where("user_id = ?", user.ID).Update("is_primary", false).Error; err != nil {
+		tx.Rollback()
+		SetFlash(w, r, "error", "failed to update addresses")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	// set primary on chosen address (safeguard by user_id)
+	if err := tx.Model(&models.Address{}).Where("id = ? AND user_id = ?", id, user.ID).Update("is_primary", true).Error; err != nil {
+		tx.Rollback()
+		SetFlash(w, r, "error", "failed to set primary address")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		SetFlash(w, r, "error", "database error")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+
+	SetFlash(w, r, "success", "Berhasil mengatur alamat sebagai utama")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// AdminLogin shows a dedicated admin login page (separate from public user login)
+func (server *Server) AdminLogin(w http.ResponseWriter, r *http.Request) {
+	render := newAdminRender()
+
+	data := server.DefaultRenderData(w, r, map[string]interface{}{
+		"error": GetFlash(w, r, "error"),
+	})
+
+	_ = render.HTML(w, http.StatusOK, "admin_login", data)
+}
+
+// DoAdminLogin handles admin authentication and ensures user role is admin
+func (server *Server) DoAdminLogin(w http.ResponseWriter, r *http.Request) {
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	userModel := models.User{}
+	user, err := userModel.FindByEmail(server.DB, email)
+	if err != nil || user == nil {
+		SetFlash(w, r, "error", "email or password invalid")
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+		return
+	}
+
+	if !ComparePassword(password, user.Password) {
+		SetFlash(w, r, "error", "email or password invalid")
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+		return
+	}
+
+	if !(user.Role == "admin" || user.Role == "superadmin") {
+		SetFlash(w, r, "error", "account does not have admin access")
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+		return
+	}
+
+	session, _ := store.Get(r, sessionUser)
+	session.Values["id"] = user.ID
+	session.Save(r, w)
+
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
