@@ -22,9 +22,10 @@ func Run() {
 	var appConfig = controllers.AppConfig{}
 	var dbConfig = controllers.DBConfig{}
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error on loading .env file")
+	// Try to load .env for local development. Don't fail when the file
+	// is missing (on platforms like Vercel env vars come from settings).
+	if err := godotenv.Load(); err != nil {
+		log.Println(".env file not found, continuing with environment variables")
 	}
 
 	appConfig.AppName = getEnv("APP_NAME", "E-commerceSparta")
