@@ -1,0 +1,12 @@
+vendor
+node_modules
+.git
+tmp
+public/admin2
+main.exe
+*.exe
+.vscode
+uploads
+public
+templates/admin2
+templates/admin
