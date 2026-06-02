@@ -1,4 +1,6 @@
 documentation.txt
+.vscode/
+documentation2.txt
 .env
 .env.example
 .idea/
